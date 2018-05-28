@@ -27,13 +27,9 @@ class A3CAgent:
         self.tick = time.clock()
         self.tickcnt = 0
         self.frame = [[20, 680, 1340, 2000], [20, 680]]
-        #if showall:
-            #self.tkr = tk.Tk()
-            #self.tkr.title("Training Monitor")
-            #self.tkr.geometry("2800x1350")
 
         # 상태크기와 행동크기를 갖고옴
-        self.state_size = (84, 84, 4)
+        self.state_size = (84, 84, 1)
         self.action_size = action_size
         # A3C 하이퍼파라미터
         self.discount_factor = 0.99
@@ -88,18 +84,11 @@ class A3CAgent:
 
             if self.showall and self.tickcnt % 5 == 0:
                 # Save the playing image as jpeg, for every 5 seconds
-                #print("Imgprocessing Called!!")
                 canvas = Image.new('RGB', (2660, 1340), (255, 255, 255))
                 for idx in range(self.threads):
                     img = Image.fromarray(agents[idx].image, 'RGB')
                     canvas.paste(img, (self.frame[0][int(idx%4)], self.frame[1][int(idx/4)]))
                 canvas.save('stream_agents/csmonitor.jpg', 'JPEG')
-                #canvas.show()
-                #label = tk.Canvas(self.tkr, width = 2660, height = 1340)
-                #label.pack()
-                #label.create_image(1330, 670, image = ImageTk.PhotoImage(canvas, size="2660x1340"))
-                #self.tkr.mainloop()
-                #self.tkr.update()
 
             if self.tickcnt % (60*5) == 0:
                 print("Saved a model after ", self.tickcnt/60, " minutes.")
@@ -251,15 +240,14 @@ class Agent(threading.Thread):
                 next_observe = env.render(show = False)
 
             state = pre_processing(next_observe, observe)
-            history = np.stack((state, state, state, state), axis=2)
-            history = np.reshape([history], (1, 84, 84, 4))
+            state = np.reshape([state], (1, 84, 84, 1))
 
             while not done:
                 step += 1
                 self.t += 1
                 observe = next_observe
                 self.image = observe
-                action, policy = self.get_action(history)
+                action, policy = self.get_action(state)
 
                 # 0: 정지, 1: up, 2: right, 3: down, 4: left
                 # 선택한 행동으로 한 스텝을 실행
@@ -269,24 +257,18 @@ class Agent(threading.Thread):
                 # 각 타임스텝마다 상태 전처리
                 next_state = pre_processing(next_observe, observe)
                 next_state = np.reshape([next_state], (1, 84, 84, 1))
-                next_history = np.append(next_state, history[:, :, :, :3],
-                                         axis=3)
 
                 # 정책의 최대값
                 self.avg_p_max += np.amax(self.actor.predict(
-                    np.float32(history / 255.)))
+                    np.float32(state / 255.)))
 
                 score += reward
                 reward = np.clip(reward, -1., 1.)
 
                 # 샘플을 저장
-                self.append_sample(history, action, reward)
-                if done:
-                    history = np.stack((next_state, next_state,
-                                        next_state, next_state), axis=2)
-                    history = np.reshape([history], (1, 84, 84, 4))
-                else:
-                    history = next_history
+                self.append_sample(state, action, reward)
+
+                state = next_state
 
                 # 에피소드가 끝나거나 최대 타임스텝 수에 도달하면 학습을 진행
                 if self.t >= self.t_max or done:
@@ -330,7 +312,7 @@ class Agent(threading.Thread):
     def train_model(self, done):
         discounted_prediction = self.discounted_prediction(self.rewards, done)
 
-        states = np.zeros((len(self.states), 84, 84, 4))
+        states = np.zeros((len(self.states), 84, 84, 1))
         for i in range(len(self.states)):
             states[i] = self.states[i]
 
@@ -375,15 +357,15 @@ class Agent(threading.Thread):
         self.local_critic.set_weights(self.critic.get_weights())
 
     # 정책신경망의 출력을 받아서 확률적으로 행동을 선택
-    def get_action(self, history):
-        history = np.float32(history / 255.)
-        policy = self.local_actor.predict(history)[0]
+    def get_action(self, state):
+        state = np.float32(state / 255.)
+        policy = self.local_actor.predict(state)[0]
         action_index = np.random.choice(self.action_size, 1, p=policy)[0]
         return action_index, policy
 
     # 샘플을 저장
-    def append_sample(self, history, action, reward):
-        self.states.append(history)
+    def append_sample(self, state, action, reward):
+        self.states.append(state)
         act = np.zeros(self.action_size)
         act[action] = 1
         self.actions.append(act)
@@ -398,5 +380,5 @@ def pre_processing(next_observe, observe):
     return processed_observe
 
 if __name__ == "__main__":
-    global_agent = A3CAgent(action_size=5, showall=True, load = True)
+    global_agent = A3CAgent(action_size=5, showall=True, load = False)
     global_agent.train()

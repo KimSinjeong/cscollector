@@ -22,23 +22,23 @@ class Env():
         self.mode = mode
 
         self.size = self.width, self.height = 640, 640
-        self.mapsize = 480, 480
+        self.mapsize = 560, 560
         self.screen = None
         if self.mode or show:
             self.screen = pygame.display.set_mode(self.size)
         else:
             self.screen = pygame.Surface(self.size)
 
-        self.speed = 8
+        self.speed = 15
         self.omega = 8
         self.direction = 0
-        self.itemsize = 12
-        self.linewidth = 8
-        self.tpan = .1
-        self.scoreboard = [30., -30.]
+        self.itemsize = 22
+        self.linewidth = 16
+        self.tpan = .01
+        self.scoreboard = [50., -30.]
         self.margin = self.itemsize + self.linewidth/2
         self.univec = np.array([1., 0.])
-        self.cret = 20
+        self.cret = 2
         self.itemnum = [3, 3]
         self.itemtype = [0 for _ in range(self.itemnum[0])] + [1 for _ in range(self.itemnum[1])]
 
