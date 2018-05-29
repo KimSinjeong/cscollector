@@ -115,10 +115,10 @@ class Env():
         for item in self.items:
             itemcor = rotate(np.array([item[0] - self.jo[0], item[1] - self.jo[1]]), -math.pi*(self.direction + 90)/180)
             if item[2] == 0.:
-                pygame.draw.circle(self.screen, (0, 255*(1-item[2]), 255*item[2]), [int(itemcor[0] + self.width/2), int(itemcor[1] + self.height/2)], self.itemsize)
+                pygame.draw.circle(self.screen, (255*item[2], 255*(1-item[2]), 255*item[2]), [int(itemcor[0] + self.width/2), int(itemcor[1] + self.height/2)], self.itemsize)
             else:
                 plist = self.itemsize * math.sqrt(2) * np.array([[0., -1.], [math.sqrt(3)/2., .5], [-math.sqrt(3)/2., .5]])
-                pygame.draw.polygon(self.screen, (0, 255*(1-item[2]), 255*item[2]), (plist + itemcor + np.array(self.size)/2).astype(int).tolist())
+                pygame.draw.polygon(self.screen, (255*item[2], 255*(1-item[2]), 255*item[2]), (plist + itemcor + np.array(self.size)/2).astype(int).tolist())
             #print(item)
 
         plist = np.array([
@@ -129,7 +129,7 @@ class Env():
                 + np.array([[self.width/2, self.height/2] for _ in range(4)])
 
         pygame.draw.polygon(self.screen, (255, 255, 255), plist.astype(int).tolist(), self.linewidth)
-        pygame.draw.rect(self.screen, (255, 0, 0), pygame.Rect(int(self.width / 2 - self.itemsize), int(self.height / 2- self.itemsize), 2*self.itemsize, 2*self.itemsize))
+        pygame.draw.rect(self.screen, (255, 255, 0), pygame.Rect(int(self.width / 2 - self.itemsize), int(self.height / 2- self.itemsize), 2*self.itemsize, 2*self.itemsize))
 
 #        print(self.jo)
 #        print("Direction : " + str(self.direction))

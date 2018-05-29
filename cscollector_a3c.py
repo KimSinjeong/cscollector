@@ -1,6 +1,6 @@
 from skimage.color import rgb2gray
 from skimage.transform import resize
-from keras.layers import Dense, Flatten, Input
+from keras.layers import Dense, Flatten, Input, LSTM
 from keras.layers.convolutional import Conv2D
 from keras.optimizers import RMSprop
 from keras import backend as K
@@ -29,7 +29,7 @@ class A3CAgent:
         self.frame = [[20, 680, 1340, 2000], [20, 680]]
 
         # 상태크기와 행동크기를 갖고옴
-        self.state_size = (84, 84, 1)
+        self.state_size = (84, 84, 4)
         self.action_size = action_size
         # A3C 하이퍼파라미터
         self.discount_factor = 0.99
@@ -94,6 +94,7 @@ class A3CAgent:
                 print("Saved a model after ", self.tickcnt/60, " minutes.")
                 self.save_model("./save_model/cscollector_a3c")
 
+
     # 정책신경망과 가치신경망을 생성
     def build_model(self):
         input = Input(shape=self.state_size)
@@ -101,6 +102,7 @@ class A3CAgent:
         conv = Conv2D(32, (4, 4), strides=(2, 2), activation='relu')(conv)
         conv = Flatten()(conv)
         fc = Dense(256, activation='relu')(conv)
+        #lstm = LSTM(256, dropout = 0.2, recurrent_dropout = 0.2)(fc)
 
         policy = Dense(self.action_size, activation='softmax')(fc)
         value = Dense(1, activation='linear')(fc)
@@ -229,7 +231,7 @@ class Agent(threading.Thread):
         while episode < EPISODES:
             done = False
 
-            score, start_life = 0, 5
+            score = 0
             observe = env.reset()
             next_observe = observe
 
@@ -239,36 +241,43 @@ class Agent(threading.Thread):
                 _, _ = env.step(0)
                 next_observe = env.render(show = False)
 
-            state = pre_processing(next_observe, observe)
-            state = np.reshape([state], (1, 84, 84, 1))
+            state = pre_processing(observe)
+            history = np.stack((state, state, state, state), axis=2)
+            history = np.reshape([history], (1, 84, 84, 4))
 
             while not done:
                 step += 1
                 self.t += 1
                 observe = next_observe
                 self.image = observe
-                action, policy = self.get_action(state)
+                action, policy = self.get_action(history)
 
                 # 0: 정지, 1: up, 2: right, 3: down, 4: left
                 # 선택한 행동으로 한 스텝을 실행
                 reward, done = env.step(action)
                 next_observe = env.render(show = False)
 
-                # 각 타임스텝마다 상태 전처리
-                next_state = pre_processing(next_observe, observe)
+                # 각 타임스텝마다 상태 전처리 (possibly crashes)
+                try:
+                	next_state = pre_processing(observe)
+
+                except:
+                	next_state = state
+
                 next_state = np.reshape([next_state], (1, 84, 84, 1))
+                next_history = np.append(next_state, history[:, :, :, :3], axis=3)
 
                 # 정책의 최대값
                 self.avg_p_max += np.amax(self.actor.predict(
-                    np.float32(state / 255.)))
+                    np.float32(history / 255.)))
 
                 score += reward
-                reward = np.clip(reward, -1., 1.)
+                #reward = np.clip(reward, -1., 1.)
 
                 # 샘플을 저장
-                self.append_sample(state, action, reward)
+                self.append_sample(history, action, reward)
 
-                state = next_state
+                history = next_history
 
                 # 에피소드가 끝나거나 최대 타임스텝 수에 도달하면 학습을 진행
                 if self.t >= self.t_max or done:
@@ -312,7 +321,7 @@ class Agent(threading.Thread):
     def train_model(self, done):
         discounted_prediction = self.discounted_prediction(self.rewards, done)
 
-        states = np.zeros((len(self.states), 84, 84, 1))
+        states = np.zeros((len(self.states), 84, 84, 4))
         for i in range(len(self.states)):
             states[i] = self.states[i]
 
@@ -373,10 +382,9 @@ class Agent(threading.Thread):
 
 
 # 학습속도를 높이기 위해 흑백화면으로 전처리
-def pre_processing(next_observe, observe):
-    processed_observe = np.maximum(next_observe, observe)
+def pre_processing(observe):
     processed_observe = np.uint8(
-        resize(rgb2gray(processed_observe), (84, 84), mode='constant') * 255)
+        resize(rgb2gray(observe), (84, 84), mode='constant') * 255)
     return processed_observe
 
 if __name__ == "__main__":
