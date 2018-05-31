@@ -263,6 +263,7 @@ class Agent(threading.Thread):
 
                 except:
                 	next_state = state
+                    print("Error is catched!!")
 
                 next_state = np.reshape([next_state], (1, 84, 84, 1))
                 next_history = np.append(next_state, history[:, :, :, :3], axis=3)

@@ -45,19 +45,35 @@ class Env():
         self.score = 0.
         self.stepcnt = 0
         self.icnt = 0
-        self.items = np.array([[int(self.margin + random.random() * (self.mapsize[0] - 2 * self.margin)),
-                                int(self.margin + random.random() * (self.mapsize[1] - 2 * self.margin)),
-                                self.itemtype[_]] for _ in range(self.itemnum[0] + self.itemnum[1])])
-        self.jo = np.array([self.mapsize[0] / 2, self.mapsize[1] / 2])
+        self.genitems()
 
     def reset(self):
         self.score = 0.
         self.stepcnt = 0
         self.icnt = 0
-        self.items = np.array([[int(self.margin + random.random() * (self.mapsize[0] - 2 * self.margin)),
-                                int(self.margin + random.random() * (self.mapsize[1] - 2 * self.margin)),
-                                self.itemtype[_]] for _ in range(self.itemnum[0] + self.itemnum[1])])
+        self.genitems()
+
+        return self.render(show = False)
+
+    def genitems(self):
         self.jo = np.array([self.mapsize[0] / 2, self.mapsize[1] / 2])
+        self.items = []
+        for i in range(self.itemnum[0] + self.itemnum[1]):
+            collide = True
+            newitem = []
+            while collide:
+                collide = False
+                newitem = [int(self.margin + random.random() * (self.mapsize[0] - 2 * self.margin)),
+                                int(self.margin + random.random() * (self.mapsize[1] - 2 * self.margin)),
+                                self.itemtype[i]]
+                if isColla(self.jo, np.array(newitem[0:2]), self.itemsize):
+                    collide = True
+                for j in range(i):
+                    if isColla(np.array(self.items[j][0:2]), np.array(newitem[0:2]), self.itemsize):
+                        collide = True
+                        break
+            self.items.append(newitem)
+        self.items = np.array(self.items)
 
     # loop
     def event_handle(self):
@@ -136,6 +152,8 @@ class Env():
 #        print(self.score)
         if show:
             pygame.display.flip()
+
+        #retval = pygame.surfarray.array3d(self.screen)
 
         return pygame.surfarray.array3d(self.screen)
 
