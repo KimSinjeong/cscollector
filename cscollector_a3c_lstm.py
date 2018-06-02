@@ -30,7 +30,7 @@ class A3CAgent:
         self.frame = [[20, 680, 1340, 2000], [20, 680]]
 
         # 상태크기와 행동크기를 갖고옴
-        self.state_size = (1, 84, 84, 4)
+        self.state_size = (20, 84, 84, 1)
         self.action_size = action_size
         # A3C 하이퍼파라미터
         self.discount_factor = 0.99
@@ -250,8 +250,8 @@ class Agent(threading.Thread):
                 continue
             state = pre_processing(observe)
 
-            history = np.stack((state, state, state, state), axis = 2)
-            history = np.reshape(history, (1, 84, 84, 4))
+            history = np.stack((state for _ in range(20)), axis = 2)
+            history = np.reshape(history, (20, 84, 84, 1))
 
             while not done:
                 step += 1
@@ -270,7 +270,7 @@ class Agent(threading.Thread):
                 next_state = pre_processing(observe)
 
                 next_state = np.reshape([next_state], (1, 84, 84, 1))
-                next_history = np.append(next_state, history[:, :, :, :3], axis=3)
+                next_history = np.append(next_state, history[:19, :, :, :], axis=0)
 
                 # 정책의 최대값
                 self.avg_p_max += np.amax(self.actor.predict(
@@ -313,9 +313,10 @@ class Agent(threading.Thread):
         discounted_prediction = np.zeros_like(rewards)
         running_add = 0
 
+        #print(self.states[-1].shape)
         if not done:
             running_add = self.critic.predict(np.float32(
-                np.array(self.states[-30:]) / 255.))[0]
+                np.array([self.states[-1]]) / 255.))[0]
 
         for t in reversed(range(0, len(rewards))):
             running_add = running_add * self.discount_factor + rewards[t]
@@ -326,11 +327,11 @@ class Agent(threading.Thread):
     def train_model(self, done):
         discounted_prediction = self.discounted_prediction(self.rewards, done)
 
-        states = np.zeros((len(self.states), 1, 84, 84, 4))
+        states = np.zeros((len(self.states), 20, 84, 84, 1))
         for i in range(len(self.states)):
             states[i] = np.array(self.states[i])
 
-        print("The shape is: ", states.shape)
+        #print("The shape is: ", states.shape)
 
         states = np.float32(states / 255.)
 

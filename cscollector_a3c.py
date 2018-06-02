@@ -309,6 +309,7 @@ class Agent(threading.Thread):
         discounted_prediction = np.zeros_like(rewards)
         running_add = 0
 
+        #print(self.states.shape)
         if not done:
             running_add = self.critic.predict(np.float32(
                 self.states[-1] / 255.))[0]
