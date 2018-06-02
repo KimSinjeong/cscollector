@@ -29,7 +29,7 @@ class A3CAgent:
         self.frame = [[20, 680, 1340, 2000], [20, 680]]
 
         # 상태크기와 행동크기를 갖고옴
-        self.state_size = (84, 84, 4)
+        self.state_size = (84, 84, 8)
         self.action_size = action_size
         # A3C 하이퍼파라미터
         self.discount_factor = 0.99
@@ -242,8 +242,8 @@ class Agent(threading.Thread):
                 next_observe = env.render(show = False)
 
             state = pre_processing(observe)
-            history = np.stack((state, state, state, state), axis=2)
-            history = np.reshape([history], (1, 84, 84, 4))
+            history = np.stack((state, state, state, state, state, state, state, state), axis=2)
+            history = np.reshape([history], (1, 84, 84, 8))
 
             while not done:
                 step += 1
@@ -262,11 +262,11 @@ class Agent(threading.Thread):
                 	next_state = pre_processing(observe)
 
                 except:
-                	next_state = state
+                    next_state = state
                     print("Error is catched!!")
 
                 next_state = np.reshape([next_state], (1, 84, 84, 1))
-                next_history = np.append(next_state, history[:, :, :, :3], axis=3)
+                next_history = np.append(next_state, history[:, :, :, :7], axis=3)
 
                 # 정책의 최대값
                 self.avg_p_max += np.amax(self.actor.predict(
@@ -322,7 +322,7 @@ class Agent(threading.Thread):
     def train_model(self, done):
         discounted_prediction = self.discounted_prediction(self.rewards, done)
 
-        states = np.zeros((len(self.states), 84, 84, 4))
+        states = np.zeros((len(self.states), 84, 84, 8))
         for i in range(len(self.states)):
             states[i] = self.states[i]
 

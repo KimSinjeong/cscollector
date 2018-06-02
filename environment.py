@@ -35,10 +35,11 @@ class Env():
         self.itemsize = 22
         self.linewidth = 16
         self.tpan = .01
-        self.scoreboard = [50., -30.]
+        self.wpan = .5
+        self.scoreboard = [60., -80.]
         self.margin = self.itemsize + self.linewidth/2
         self.univec = np.array([1., 0.])
-        self.cret = 2
+        self.cret = 1
         self.itemnum = [3, 3]
         self.itemtype = [0 for _ in range(self.itemnum[0])] + [1 for _ in range(self.itemnum[1])]
 
@@ -101,6 +102,12 @@ class Env():
         if self.jo[0] < self.margin or self.jo[0] > self.mapsize[0] - self.margin or self.jo[1] < self.margin or \
                 self.jo[1] > self.mapsize[1] - self.margin:
             self.jo = prevjo
+            reward -= self.wpan
+            self.score -= self.wpan
+
+        elif np.linalg.norm(self.jo - prevjo) < self.speed / 2:
+        	reward -= 2*self.tpan
+        	self.score -= 2*self.tpan
 
         newarr = None
         isUpdated = False
@@ -117,9 +124,14 @@ class Env():
         if isUpdated:
             self.items = newarr
 
-        if self.stepcnt % self.cret == 0:
+        #if self.stepcnt % self.cret == 0:
+        if action == 0:
             self.score -= self.tpan
             reward -= self.tpan
+
+        if action == 3:
+        	self.score -= self.tpan
+        	reward -= self.tpan/2
 
         return reward, (self.itemnum[0] == self.icnt)
 
