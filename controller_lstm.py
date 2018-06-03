@@ -10,8 +10,9 @@ from coordinates import rela_coords
 from skimage.color import rgb2gray
 from skimage.transform import resize
 from keras.models import Model
-from keras.layers import Dense, Flatten, Input
+from keras.layers import Dense, Flatten, Input, LSTM
 from keras.layers.convolutional import Conv2D
+from keras.layers.wrappers import TimeDistributed
 
 global episode
 episode = 0
@@ -27,13 +28,20 @@ def isColla(a, b, dist):
     else:
         return False
 
+class Dummy():
+    def __init__(self):
+        pass
+
+    def send_to_ev3(self, signal = 1):
+        print(signal, " was successfully sent to ev3!!")
+
 class Comm():
     def __init__(self, addr, port):
         self.server_address = addr
         self.port = port
         self.size = 1024
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.bind((server_address, port))
+        self.sock.bind((self.server_address, port))
 
         self.sock.listen(1)
         print("Waiting ev3Client...")
@@ -58,7 +66,6 @@ class Comm():
                 print("Disconnected")
                 client.close()
                 sock.close()
-                break
         except:
             print("Closing socket")
             self.client.close()
@@ -68,8 +75,8 @@ class Env():
     # initialize
     def __init__(self, mode = True, show = True):
         pygame.init()
-        self.ev3 = Comm(addr = "192.168.137.1", port = 8040)
-
+        #self.ev3 = Comm(addr = "192.168.137.1", port = 8040)
+        self.ev3 = Dummy()
         self.mode = mode
 
         self.size = self.width, self.height = 640, 640
@@ -90,7 +97,7 @@ class Env():
         self.itemtype = [0 for _ in range(self.itemnum[0])] + [1 for _ in range(self.itemnum[1])]
 
     def reset(self):
-
+        self.step(0)
         return self.render(show = False)
 
     def event_handle(self):
@@ -105,10 +112,12 @@ class Env():
         self.itemtype = [0 for _ in range(self.itemnum[0])] + [1 for _ in range(self.itemnum[1])]
         itemtype_ = [[_] for _ in self.itemtype]
         self.items = mapobj[2:]
+        #print(self.items.shape)
+        #print(self.items)
         self.items = np.append(self.items, itemtype_, axis = 1)
 
         # Approached to milk pack
-        for i in range(itemnum[0]):
+        for i in range(self.itemnum[0]):
             if isColla(self.items[i][:2], np.array([0, 0]), self.itemsize):
                 action = 5
 
@@ -116,8 +125,9 @@ class Env():
         self.ev3.send_to_ev3(action)
 
         mapcenter = np.array([(mapobj[0][0] + mapobj[1][0])/2, (mapobj[0][1] + mapobj[1][1])/2])
-        self.mapcoor = np.array([mapobj[0], [rotate(mapobj[1]-mapcenter, math.pi/2) + mapcenter], mapobj[1], [rotate(mapobj[1]-mapcenter, -math.pi/2) + mapcenter]])
+        self.mapcoor = np.array([mapobj[0], rotate(mapobj[1]-mapcenter, math.pi/2) + mapcenter, mapobj[1], rotate(mapobj[1]-mapcenter, -math.pi/2) + mapcenter])
 
+        print(self.mapcoor)
         return (self.itemnum[0] == 0)
 
     def render(self, show = True):
@@ -147,7 +157,7 @@ class Env():
 
 class TestAgent:
     def __init__(self, action_size):
-        self.state_size = (84, 84, 8)
+        self.state_size = (20, 84, 84, 1)
         self.action_size = action_size
 
         self.discount_factor = 0.99
@@ -157,12 +167,14 @@ class TestAgent:
 
     def build_model(self):
         input = Input(shape=self.state_size)
-        conv = Conv2D(16, (8, 8), strides=(4, 4), activation='relu')(input)
-        conv = Conv2D(32, (4, 4), strides=(2, 2), activation='relu')(conv)
-        conv = Flatten()(conv)
+        conv = TimeDistributed(Conv2D(16, (8, 8), strides=(4, 4), activation='relu'))(input)
+        conv = TimeDistributed(Conv2D(32, (4, 4), strides=(2, 2), activation='relu'))(conv)
+        conv = TimeDistributed(Flatten())(conv)
         fc = Dense(256, activation='relu')(conv)
-        policy = Dense(self.action_size, activation='softmax')(fc)
-        value = Dense(1, activation='linear')(fc)
+        lstm = LSTM(256)(fc)
+
+        policy = Dense(self.action_size, activation='softmax')(lstm)
+        value = Dense(1, activation='linear')(lstm)
 
         actor = Model(inputs=input, outputs=policy)
         critic = Model(inputs=input, outputs=value)
@@ -192,9 +204,9 @@ if __name__ == "__main__":
     tick = time.clock()
     env = Env(mode = False)
     agent = TestAgent(action_size=5)
-    agent.load_model("./save_model/cscollector_a3c_actor.h5")
+    agent.load_model("./save_model/cscollector_a3c_lstm_actor.h5")
 
-    waittime = 0.5
+    waittime = 1.
     step = 0
 
     while episode < EPISODES:
@@ -216,8 +228,8 @@ if __name__ == "__main__":
             tick = time.clock()
 
         state = pre_processing(observe)
-        history = np.stack((state, state, state, state, state, state, state, state), axis=2)
-        history = np.reshape([history], (1, 84, 84, 8))
+        history = np.stack((state for _ in range(20)), axis=2)
+        history = np.reshape([history], (20, 84, 84, 1))
 
         while not done:
             dt = time.clock() - tick
@@ -225,7 +237,7 @@ if __name__ == "__main__":
             step += 1
             observe = next_observe
 
-            action = agent.get_action(history)
+            action = agent.get_action(np.array([history]))
             print(step, action)
             done = env.step(action)
             next_observe = env.render()
@@ -236,13 +248,13 @@ if __name__ == "__main__":
 
             next_state = pre_processing(observe)
             next_state = np.reshape([next_state], (1, 84, 84, 1))
-            next_history = np.append(next_state, history[:, :, :, :7], axis=3)
+            next_history = np.append(next_state, history[:19, :, :, :], axis=0)
 
             # if done, plot the episodes and reset the history
             if done:
                 history = np.stack(
-                    (next_state, next_state, next_state, next_state, next_state, next_state, next_state, next_state), axis=2)
-                history = np.reshape([history], (1, 84, 84, 8))
+                    (next_state for _ in range(20)), axis=2)
+                history = np.reshape([history], (20, 84, 84, 1))
                 episode += 1
                 print("episode:", episode, "  time:", step*waittime)
                 step = 0

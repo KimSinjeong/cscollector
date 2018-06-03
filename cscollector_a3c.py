@@ -89,6 +89,7 @@ class A3CAgent:
                     img = Image.fromarray(agents[idx].image, 'RGB')
                     canvas.paste(img, (self.frame[0][int(idx%4)], self.frame[1][int(idx/4)]))
                 canvas.save('stream_agents/csmonitor.jpg', 'JPEG')
+                #print("Saved an image")
 
             if self.tickcnt % (60*5) == 0:
                 print("Saved a model after ", self.tickcnt/60, " minutes.")

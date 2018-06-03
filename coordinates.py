@@ -2,6 +2,7 @@ import numpy as np
 import math
 from euclid import Vector2, Vector3
 import detection
+import cv2
 
 def align_to_robot(robot, corners, sodas, milks):
   robfront, robback = robot
@@ -38,7 +39,29 @@ def align_to_robot(robot, corners, sodas, milks):
   return corners, sodas, milks
 
 def rela_coords():
-  robot, corners, sodas, milks = detection.detect(image)
+  cap = cv2.VideoCapture(1)
+  ret, image = cap.read()
+  #cv2.imshow("Image", image)
+  # cv2.waitKey(0)
+
+  if not ret:
+    raise Exception('Camera initialization failed.')
+
+  robot, corners, sodas, milks, res_image = detection.detect(image)
+  #cv2.imshow("detection", res_image)
+  #cv2.waitKey(0)
+  # if there are any problems return dummy map, so that robot will move
+  if len(robot[0]) != 2 or len(robot[1]) != 2 or len(corners) != 2:
+    dummy_corners = [[50, 50], [-50,-50]]
+    dummy_sodas = []
+    dummy_milks = [[0, 10]]
+    #cv2.destroyAllWindows()
+    #cap.release()
+    return [len(dummy_milks), len(dummy_sodas)], np.array(dummy_corners + dummy_milks + dummy_sodas, dtype='int32')
+
   corners, sodas, milks = align_to_robot(robot, corners, sodas, milks)
-  
-  return (len(milks), len(sodas)), np.array([*corners, milks, sodas], dtype='uint16')
+  cv2.destroyAllWindows()
+  cap.release()
+
+  #print(np.array([*corners, *milks, *sodas], dtype='int32'))
+  return [len(milks), len(sodas)], np.array([*corners, *milks, *sodas], dtype='int32')

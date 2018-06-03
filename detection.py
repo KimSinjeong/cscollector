@@ -29,8 +29,8 @@ import imutils
 
 def detect(image):
   image = image.copy()
-  robfront = (0, 0)
-  robback = (0, 0)
+  robfront = ()
+  robback = ()
   corners = []
   sodas = []
   milks = []
@@ -40,6 +40,7 @@ def detect(image):
     "green":  [(0,    83-5, 128-5),     (255, 103+5, 143+5)],
     "yellow": [(0,   -15+128, 20+128),  (255,   5+128, 40+128)],
     "red":    [(0,   40+128, 20+128),   (255,  75+128, 50+128)],
+    #"red":    [(0,   20 + 128, 10 + 128),   (255,  75+128, 50+128)],
     "blue":   [(0,   -20+128, -55+128), (255,   5+128, -20+128)],
     # "cyan":   [(50,   -15+128, -5+128),  (200,   0+128,  5+128)],
   }
@@ -94,7 +95,8 @@ def detect(image):
       elif color == 'yellow':
         sodas.append((cX, cY))
 
-  return image
+  # return image
+  return [robfront, robback], corners, sodas, milks, image
 
 def main():
   cap = cv2.VideoCapture(1)
@@ -106,7 +108,7 @@ def main():
       print("Couldn't read capture data")
       break
 
-    res_image = detect(image)
+    _, _, _, _, res_image = detect(image)
 
     # Show frame
     cv2.imshow("detection", res_image)
