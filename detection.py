@@ -99,7 +99,7 @@ def detect(image):
   return [robfront, robback], corners, sodas, milks, image
 
 def main():
-  cap = cv2.VideoCapture(1)
+  cap = cv2.VideoCapture(2)
 
   while True:
     # Read image from frame

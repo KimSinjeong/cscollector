@@ -75,8 +75,8 @@ class Env():
     # initialize
     def __init__(self, mode = True, show = True):
         pygame.init()
-        #self.ev3 = Comm(addr = "192.168.137.1", port = 8040)
-        self.ev3 = Dummy()
+        self.ev3 = Comm(addr = "192.168.137.1", port = 8040)
+        #self.ev3 = Dummy()
         self.mode = mode
 
         self.size = self.width, self.height = 640, 640
@@ -114,7 +114,11 @@ class Env():
         self.items = mapobj[2:]
         #print(self.items.shape)
         #print(self.items)
-        self.items = np.append(self.items, itemtype_, axis = 1)
+        try:
+            self.items = np.append(self.items, itemtype_, axis = 1)
+
+        except:
+            print(self.itemnum)
 
         # Approached to milk pack
         for i in range(self.itemnum[0]):
@@ -170,7 +174,7 @@ class TestAgent:
         conv = TimeDistributed(Conv2D(16, (8, 8), strides=(4, 4), activation='relu'))(input)
         conv = TimeDistributed(Conv2D(32, (4, 4), strides=(2, 2), activation='relu'))(conv)
         conv = TimeDistributed(Flatten())(conv)
-        fc = Dense(256, activation='relu')(conv)
+        fc = TimeDistributed(Dense(256, activation='relu'))(conv)
         lstm = LSTM(256)(fc)
 
         policy = Dense(self.action_size, activation='softmax')(lstm)
