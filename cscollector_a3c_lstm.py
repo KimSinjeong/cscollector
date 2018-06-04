@@ -35,8 +35,8 @@ class A3CAgent:
         # A3C 하이퍼파라미터
         self.discount_factor = 0.99
         self.no_op_steps = 30
-        self.actor_lr = 2.5e-4
-        self.critic_lr = 2.5e-4
+        self.actor_lr = 1.0e-4
+        self.critic_lr = 1.0e-4
         # 쓰레드의 갯수
         self.threads = 8
 
